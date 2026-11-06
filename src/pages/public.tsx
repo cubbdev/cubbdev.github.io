@@ -77,7 +77,7 @@ export function Landing() {
         <p className="muted" style={{ margin: '0 0 28px' }}>Self-service from the first login. No tickets, no manual approvals.</p>
         <div className="grid g3">
           {[
-            { i: <Lock size={18} />, t: 'STRICT_PRIVATE execution', d: 'Proprietary logic runs on infrastructure you control. Experiences call predefined, validated operations and only ever receive results.' },
+            { i: <Lock size={18} />, t: 'Strict private (coming soon)', d: 'Secret logic that never enters the game. Experiences call predefined, validated operations and only ever receive results. Under development.' },
             { i: <Fingerprint size={18} />, t: 'Account-locked licenses', d: 'Keys are bound to a Roblox account. Experience ownership is resolved from the place ID Roblox attaches to each request — never from script-reported values.' },
             { i: <KeyRound size={18} />, t: '256-bit keys, hashed at rest', d: 'Credentials are shown once and stored only as SHA-256 hashes. Rotate, revoke, transfer or reset a binding in a click.' },
             { i: <Server size={18} />, t: 'Short-lived sessions', d: 'Servers hold leases that renew by heartbeat. Revocations take effect immediately for new servers and at the next renewal for running ones.' },

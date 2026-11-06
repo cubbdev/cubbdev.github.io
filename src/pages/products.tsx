@@ -154,11 +154,11 @@ export function ProductNew() {
                 <div className="muted small mt-8">Your files only run in licensed games, and are removed if a license is revoked. Buyers can open the files in Studio.</div>
               </div>
             </label>
-            <label className={`type-card ${type === 'STRICT_PRIVATE' ? 'selected' : ''}`}>
-              <input type="radio" name="type" checked={type === 'STRICT_PRIVATE'} onChange={() => setType('STRICT_PRIVATE')} />
+            <label className="type-card disabled" title="Strict private is under development">
+              <input type="radio" name="type" disabled checked={false} readOnly />
               <div>
-                <div className="row" style={{ fontWeight: 600, gap: 8 }}><Lock size={16} />Strict private</div>
-                <div className="muted small mt-8">Your secret logic never leaves a server you run; games get results only. Needs a runtime server (set up after upload).</div>
+                <div className="row" style={{ fontWeight: 600, gap: 8 }}><Lock size={16} />Strict private <span className="badge orange">Under development</span></div>
+                <div className="muted small mt-8">Your secret logic stays on Cipher’s servers and games only get results. Coming soon.</div>
               </div>
             </label>
           </div>

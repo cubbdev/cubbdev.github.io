@@ -322,6 +322,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 @media (max-width: 900px) { .file-field-spacer { display: none; } .file-field .select { width: 100%; } .file-field { flex: 1 1 100%; } }
 .type-card { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); cursor: pointer; flex: 1; min-width: 240px; }
 .type-card.selected { border-color: var(--accent); background: rgba(69,69,255,0.07); }
+.type-card.disabled { opacity: 0.55; cursor: not-allowed; }
 .type-card input { margin-top: 4px; accent-color: var(--accent); }
 .icon-picker { width: 96px; height: 96px; border-radius: 16px; border: 1.5px dashed var(--border-strong); background: var(--panel-2); display: grid; place-items: center; cursor: pointer; overflow: hidden; flex: none; color: var(--text-3); }
 .icon-picker:hover { border-color: var(--accent); }
