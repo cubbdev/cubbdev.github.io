@@ -7,6 +7,7 @@ import type {
   CustomerDetailDTO,
   DiscordChannelDTO,
   DiscordRoleDTO,
+  GamePassDTO,
   IssuedLicenseDTO,
   LicenseDTO,
   LicenseEventDTO,
@@ -15,7 +16,13 @@ import type {
   Paginated,
   PermissionGroupDTO,
   ProductDTO,
+  PurchaseDTO,
   RedeemResultDTO,
+  RobloxLinkDTO,
+  SalesDTO,
+  ShopProductDTO,
+  ShopStoreDTO,
+  StoreRobloxDTO,
   SecurityEventDTO,
   SessionDTO,
   StoreDTO,
@@ -199,11 +206,12 @@ export class CipherClient {
   }
   versions(storeId: string, productId: string) { return this.request<{ items: VersionDTO[] }>('GET', `/stores/${storeId}/products/${productId}/versions`); }
   /** One-step asset upload: Cipher creates the product, version 1.0.0, publishes it and builds the package. */
-  quickCreateProduct(storeId: string, input: { name: string; description?: string | null; distribution_type: 'STRICT_PRIVATE' | 'SERVER_PROTECTED'; icon?: Blob | null; files: UploadFile[] }) {
+  quickCreateProduct(storeId: string, input: { name: string; description?: string | null; distribution_type: 'STRICT_PRIVATE' | 'SERVER_PROTECTED'; advanced_security?: boolean; icon?: Blob | null; files: UploadFile[] }) {
     const fd = new FormData();
     fd.set('name', input.name);
     if (input.description) fd.set('description', input.description);
     fd.set('distribution_type', input.distribution_type);
+    fd.set('advanced_security', input.advanced_security ? 'true' : 'false');
     if (input.icon) fd.set('icon', input.icon);
     for (const f of input.files) fd.append('files', f.file, f.fileName);
     fd.set('manifest', JSON.stringify(input.files.map((f) => ({ destination: f.destination, script_type: f.scriptType ?? null }))));
@@ -218,7 +226,6 @@ export class CipherClient {
     fd.set('publish', publish ? 'true' : 'false');
     return this.request<VersionDTO>('POST', `/stores/${storeId}/products/${productId}/versions`, fd);
   }
-  fileDownloadUrl(storeId: string, productId: string, fileId: string) { return this.url(`/v1/stores/${storeId}/products/${productId}/files/${fileId}`); }
   uploadVersion(storeId: string, productId: string, file: Blob | null, fileName: string, version: string, changelog?: string, publish = true) {
     const fd = new FormData();
     if (file) fd.set('file', file, fileName);
@@ -269,6 +276,35 @@ export class CipherClient {
   apiKeys(storeId: string) { return this.request<{ items: ApiKeyDTO[] }>('GET', `/stores/${storeId}/api-keys`); }
   createApiKey(storeId: string, name: string, permissions: Permission[]) { return this.request<ApiKeyDTO & { key: string }>('POST', `/stores/${storeId}/api-keys`, { name, permissions }); }
   revokeApiKey(storeId: string, keyId: string) { return this.request<{ ok: true }>('DELETE', `/stores/${storeId}/api-keys/${keyId}`); }
+
+  /* ---------------- Roblox & Robux sales (store side) ---------------- */
+  robloxStatus() { return this.request<{ configured: boolean }>('GET', '/roblox/status'); }
+  /** Returns a URL to navigate to (top-level) that starts Roblox OAuth. */
+  robloxConnect(purpose: 'store' | 'link', opts: { storeId?: string; redirect?: string } = {}) { return this.request<{ url: string }>('POST', '/roblox/connect', { purpose, store_id: opts.storeId, redirect: opts.redirect }); }
+  robloxMe() { return this.request<RobloxLinkDTO>('GET', '/roblox/me'); }
+  robloxUnlink() { return this.request<{ ok: true }>('DELETE', '/roblox/me'); }
+  storeRoblox(storeId: string) { return this.request<StoreRobloxDTO>('GET', `/stores/${storeId}/roblox`); }
+  selectRobloxOwner(storeId: string, ownerType: 'User' | 'Group', ownerId: string) { return this.request<{ ok: true }>('POST', `/stores/${storeId}/roblox/select`, { owner_type: ownerType, owner_id: ownerId }); }
+  disconnectStoreRoblox(storeId: string) { return this.request<{ ok: true }>('DELETE', `/stores/${storeId}/roblox`); }
+  gamePasses(storeId: string, universeId: string) { return this.request<{ items: GamePassDTO[] }>('GET', `/stores/${storeId}/roblox/universes/${universeId}/game-passes`); }
+  createGamePassSale(storeId: string, productId: string, universeId: string, priceRobux: number, name?: string) {
+    return this.request<{ gamepass: GamePassDTO }>('POST', `/stores/${storeId}/roblox/products/${productId}/sale`, { mode: 'create', universe_id: universeId, price_robux: priceRobux, name });
+  }
+  linkGamePassSale(storeId: string, productId: string, universeId: string, gamePassId: string) {
+    return this.request<{ gamepass: GamePassDTO }>('POST', `/stores/${storeId}/roblox/products/${productId}/sale`, { mode: 'link', universe_id: universeId, gamepass_id: gamePassId });
+  }
+  updateSale(storeId: string, productId: string, input: { for_sale?: boolean }) { return this.request<{ ok: true; for_sale: boolean; price_robux: number | null }>('PATCH', `/stores/${storeId}/roblox/products/${productId}/sale`, input); }
+  removeSale(storeId: string, productId: string) { return this.request<{ ok: true }>('DELETE', `/stores/${storeId}/roblox/products/${productId}/sale`); }
+  sales(storeId: string, days = 30) { return this.request<SalesDTO>('GET', `/stores/${storeId}/sales`, undefined, { days }); }
+
+  /* ---------------- Storefront & purchases (buyer side) ---------------- */
+  shop(slug: string) { return this.request<ShopStoreDTO>('GET', `/shop/stores/${slug}`); }
+  shopProduct(slug: string, productId: string) { return this.request<{ store: { name: string; slug: string }; product: ShopProductDTO }>('GET', `/shop/stores/${slug}/products/${productId}`); }
+  startPurchase(slug: string, productId: string) { return this.request<PurchaseDTO>('POST', `/shop/stores/${slug}/products/${productId}/purchase`, {}); }
+  purchases() { return this.request<{ items: PurchaseDTO[] }>('GET', '/shop/purchases'); }
+  purchase(id: string) { return this.request<PurchaseDTO>('GET', `/shop/purchases/${id}`); }
+  checkPurchase(id: string) { return this.request<PurchaseDTO>('POST', `/shop/purchases/${id}/check`, {}); }
+  purchaseDownload(id: string) { return this.request<{ url: string; file_name: string; expires_at: string }>('POST', `/shop/purchases/${id}/download`, {}); }
 
   /* ---------------- Customer portal ---------------- */
   redeem(token: string) { return this.request<RedeemResultDTO>('POST', '/redeem', { token }); }

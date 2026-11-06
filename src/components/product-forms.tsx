@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { FileBox, FileCode2, FileArchive, Plus, Trash2, UploadCloud } from 'lucide-react';
+import { FileBox, FileCode2, Plus, Trash2, UploadCloud } from 'lucide-react';
 import type { OperationField, ProductPolicy, RuntimeOperation, ScriptType } from '@cipher/shared';
 import { DESTINATIONS } from '@cipher/shared';
 import { fmtBytes } from '../lib';
@@ -7,8 +7,8 @@ import { Field, Toggle } from './ui';
 
 /* ---------------------------------------------------------------- multi-file picker */
 
-export const ACCEPTED_FILES = '.rbxmx,.rbxm,.lua,.luau,.zip';
-const ACCEPTED_EXT = ['rbxmx', 'rbxm', 'lua', 'luau', 'zip'];
+export const ACCEPTED_FILES = '.rbxmx,.lua,.luau';
+const ACCEPTED_EXT = ['rbxmx', 'lua', 'luau'];
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 export interface FileRow {
@@ -41,7 +41,7 @@ export function FilesEditor({ value, onChange, disabled }: { value: FileRow[]; o
     const rows: FileRow[] = [];
     const problems: string[] = [];
     for (const f of Array.from(list)) {
-      if (!ACCEPTED_EXT.includes(ext(f.name))) problems.push(`${f.name}: use .rbxmx, .rbxm, .lua, .luau or .zip`);
+      if (!ACCEPTED_EXT.includes(ext(f.name))) problems.push(ext(f.name) === 'rbxm' ? `${f.name}: binary models can't be protected. In Studio use Save to File → .rbxmx` : `${f.name}: use .rbxmx, .lua or .luau`);
       else if (f.size > MAX_FILE_BYTES) problems.push(`${f.name}: larger than 25 MB`);
       else rows.push({ key: `${f.name}-${f.size}-${Math.random()}`, file: f, destination: guessDestination(f.name), scriptType: null });
     }
@@ -66,17 +66,17 @@ export function FilesEditor({ value, onChange, disabled }: { value: FileRow[]; o
         <input ref={ref} type="file" multiple hidden accept={ACCEPTED_FILES} onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
         <UploadCloud size={value.length ? 20 : 26} className="faint" />
         <div style={{ fontWeight: 500, marginTop: 6 }}>{value.length ? 'Add more files' : 'Drop your files here, or click to choose'}</div>
-        <div className="faint small">Models (.rbxmx, .rbxm), scripts (.lua, .luau) or .zip · up to 20 files, 25 MB each</div>
+        <div className="faint small">Models (.rbxmx) and scripts (.lua, .luau) · up to 20 files, 25 MB each · buyers only ever get the protected loader</div>
       </div>
       {error && <div className="small" style={{ color: 'var(--red)' }}>{error}</div>}
       {value.map((r) => (
         <div key={r.key} className="file-row">
           <span className="product-icon" style={{ width: 34, height: 34 }}>
-            {isScript(r.file.name) ? <FileCode2 size={16} /> : ext(r.file.name) === 'zip' ? <FileArchive size={16} /> : <FileBox size={16} />}
+            {isScript(r.file.name) ? <FileCode2 size={16} /> : <FileBox size={16} />}
           </span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="cell-main" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.file.name}</div>
-            <div className="cell-sub">{fmtBytes(r.file.size)}{ext(r.file.name) === 'rbxm' || ext(r.file.name) === 'zip' ? ' · delivered as a separate download' : ''}</div>
+            <div className="cell-sub">{fmtBytes(r.file.size)}</div>
           </div>
           <label className="file-field">
             <span className="faint small">Goes in</span>

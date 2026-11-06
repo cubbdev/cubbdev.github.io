@@ -40,6 +40,7 @@ export function Docs() {
               <li><strong>Upload a product.</strong> Choose a name, icon, description and files, and pick where each file goes. Cipher generates the product ID, loader, version and integration guide.</li>
               <li><strong>Generate a key</strong> for the buyer’s Roblox account — from the dashboard, <code>/newkey</code> in Discord, or your shop via an API key.</li>
               <li><strong>Send the key.</strong> The customer redeems it at <Link to="/redeem" style={{ textDecoration: 'underline' }}>/redeem</Link>, inserts the loader and stores the key as a Roblox Secret.</li>
+              <li><strong>Or sell for Robux.</strong> Connect Roblox on the <strong>Sales</strong> page, open a product’s <strong>Sell for Robux</strong> tab and create a game pass. Buyers use your store page: they sign in with Discord, link Roblox, buy the pass, and Cipher issues their key and loader automatically.</li>
               <li><strong>Manage</strong> revocations, transfers and support from the dashboard or Discord.</li>
             </ol>
           )}
@@ -48,7 +49,10 @@ export function Docs() {
               <h3 style={{ marginBottom: 0 }}>STRICT_PRIVATE <span className="badge orange">Under development</span></h3>
               <p className="muted">The proprietary implementation lives on infrastructure you control (your runtime endpoint). The experience receives a public loader and adapter. When the game needs functionality, the server asks Cipher to run a predefined operation (e.g. <code>vehicle.spawn</code>). Cipher verifies the license session, operation name, payload schema and rate limits, then forwards a signed request to your runtime. Only structured results return to Roblox. Arbitrary code is never accepted or executed.</p>
               <h3 style={{ marginBottom: 0 }}>SERVER_PROTECTED</h3>
-              <p className="muted">You upload server-side Roblox files. Customers download them after redeeming a valid key, and the loader only starts your <code>CipherEntry</code> module after authorization.</p>
+              <p className="muted">You upload Roblox models (<code>.rbxmx</code>) and scripts (<code>.lua</code>/<code>.luau</code>) and choose where each goes. Cipher packs them into one loader package — the only thing anyone can ever download. Scripts ship disabled and are placed and enabled only after the license is verified, and removed if it is revoked.</p>
+              <h3 style={{ marginBottom: 0 }}>Advanced Security</h3>
+              <p className="muted">An optional switch per product. When the game is running in Roblox Studio, the loader destroys itself and every product file from that session before anything is placed, and Cipher refuses Studio activations server-side. The product only runs on live Roblox servers.</p>
+              <Callout kind="info">Advanced Security stops the product from <em>running</em> in Studio. The package file itself can still be opened in Studio’s editor by the buyer, so treat it as an anti-testing and anti-leak deterrent, not encryption.</Callout>
               <Callout kind="warn"><strong>Honest disclosure:</strong> the experience owner controls their own place and can read SERVER_PROTECTED files. It deters casual redistribution and enforces licensing at runtime, but it does not make source code inaccessible. STRICT_PRIVATE, for logic that must stay confidential, is under development.</Callout>
               <Callout kind="info">Client-side (LocalScript) code is always visible to players. The generated client adapter is public by design and only handles UI and input.</Callout>
             </>

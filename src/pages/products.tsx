@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Check, Download, FileCode2, ImagePlus, KeyRound, Lock, Package, Plus, Server, Upload } from 'lucide-react';
+import { Download, FileCode2, ImagePlus, KeyRound, Lock, Package, Plus, Server, ShieldCheck, Upload } from 'lucide-react';
 import type { DistributionType, ProductDTO, ProductPolicy, RuntimeOperation } from '@cipher/shared';
 import { DEFAULT_PRODUCT_POLICY } from '@cipher/shared';
 import { PageHead } from '../components/layout';
 import { EVENT_COLOR, EVENT_LABEL, eventDetail, GenerateKeyModal } from '../components/keys';
 import { FilesEditor, OperationsEditor, PolicyEditor, type FileRow } from '../components/product-forms';
-import { Callout, ConfirmModal, CopyField, Empty, ErrorState, Field, Menu, PageLoader, Spinner, StatusBadge, Tabs, useToast } from '../components/ui';
+import { SaleTab } from '../components/sale';
+import { Callout, ConfirmModal, CopyField, Empty, ErrorState, Field, Menu, PageLoader, Spinner, StatusBadge, Tabs, Toggle, useToast } from '../components/ui';
 import { useStore } from '../context';
 import { api, downloadAuthenticated, errorText, fmtBytes, fmtDate, relTime, useAsync, useDebounced } from '../lib';
 
@@ -85,6 +86,7 @@ export function ProductNew() {
   const [iconUrl, setIconUrl] = useState<string | null>(null);
   const [type, setType] = useState<DistributionType>('SERVER_PROTECTED');
   const [files, setFiles] = useState<FileRow[]>([]);
+  const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -101,6 +103,7 @@ export function ProductNew() {
         name: name.trim(),
         description: description.trim() || null,
         distribution_type: type,
+        advanced_security: advanced,
         icon,
         files: files.map((f) => ({ file: f.file, fileName: f.file.name, destination: f.destination, scriptType: f.scriptType })),
       });
@@ -168,6 +171,8 @@ export function ProductNew() {
           <FilesEditor value={files} onChange={setFiles} disabled={busy} />
         </Field>
 
+        <AdvancedSecurityRow on={advanced} onChange={setAdvanced} disabled={busy} />
+
         {type === 'STRICT_PRIVATE' && (
           <Callout kind="info">Don’t upload your secret code here — anything uploaded is delivered to buyers. After uploading, open the product’s <strong>Runtime operations</strong> tab to connect your runtime server.</Callout>
         )}
@@ -184,9 +189,21 @@ export function ProductNew() {
   );
 }
 
+function AdvancedSecurityRow({ on, onChange, disabled }: { on: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <div className="setting-row">
+      <div>
+        <div className="row" style={{ fontWeight: 600, gap: 8 }}><ShieldCheck size={16} />Advanced Security</div>
+        <div className="muted small mt-8">If the game is running in Roblox Studio, the loader deletes itself and every product file from that session before anything loads. Your product only ever runs in live Roblox servers, so it can't be play-tested in Studio.</div>
+      </div>
+      <Toggle on={on} onChange={onChange} label="Advanced Security" disabled={disabled} />
+    </div>
+  );
+}
+
 /* ================================================================== detail */
 
-type Tab = 'overview' | 'versions' | 'licensing' | 'runtime' | 'integration' | 'activity';
+type Tab = 'overview' | 'versions' | 'sale' | 'licensing' | 'runtime' | 'integration' | 'activity';
 
 export function ProductDetail() {
   const { productId } = useParams();
@@ -207,7 +224,7 @@ export function ProductDetail() {
       <PageHead
         crumbs={[{ to: `/app/s/${store.id}/products`, label: 'Products' }, { to: '#', label: p.name }]}
         title={p.name}
-        sub={<span className="row wrap"><StatusBadge status={p.status} /><span className={`badge ${p.distribution_type === 'STRICT_PRIVATE' ? 'blue' : 'gray'}`}>{p.distribution_type}</span><span className="mono faint">{p.id}</span></span>}
+        sub={<span className="row wrap"><StatusBadge status={p.status} /><span className={`badge ${p.distribution_type === 'STRICT_PRIVATE' ? 'blue' : 'gray'}`}>{p.distribution_type}</span>{p.advanced_security && <span className="badge green">Advanced Security</span>}{p.sale?.for_sale && <span className="badge orange">R$ {p.sale.price_robux ?? '—'}</span>}<span className="mono faint">{p.id}</span></span>}
         actions={
           <>
             <button className="btn light" onClick={() => downloadAuthenticated(api.loaderDownloadUrl(store.id, p.id), 'loader.rbxmx').catch(toast.error)}><Download size={16} />Download package</button>
@@ -225,6 +242,7 @@ export function ProductDetail() {
         tabs={[
           { id: 'overview', label: 'Overview' },
           { id: 'versions', label: 'Versions' },
+          { id: 'sale', label: 'Sell for Robux', hidden: p.distribution_type !== 'SERVER_PROTECTED' },
           { id: 'licensing', label: 'License policy' },
           { id: 'runtime', label: 'Runtime operations', hidden: p.distribution_type !== 'STRICT_PRIVATE' },
           { id: 'integration', label: 'Integration' },
@@ -233,6 +251,7 @@ export function ProductDetail() {
       />
       {tab === 'overview' && <ProductOverview p={p} onChange={product.reload} />}
       {tab === 'versions' && <Versions p={p} onChange={product.reload} />}
+      {tab === 'sale' && <SaleTab p={p} onChange={product.reload} />}
       {tab === 'licensing' && <PolicyTab p={p} onChange={(np) => product.setData(np)} />}
       {tab === 'runtime' && <RuntimeTab p={p} onChange={(np) => product.setData(np)} />}
       {tab === 'integration' && <Integration p={p} />}
@@ -272,6 +291,19 @@ function ProductOverview({ p, onChange }: { p: ProductDTO; onChange: () => void 
             <label className="btn"><ImagePlus size={16} />Change icon<input type="file" hidden accept="image/png,image/jpeg,image/webp" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { await api.uploadIcon(store.id, p.id, f); toast.success('Icon updated'); onChange(); } catch (err) { toast.error(err); } }} /></label>
           </div>
         )}
+        <AdvancedSecurityRow
+          on={p.advanced_security}
+          disabled={!can('products.edit')}
+          onChange={async (v) => {
+            try {
+              await api.updateProduct(store.id, p.id, { advanced_security: v });
+              toast.success(v ? 'Advanced Security on. Buyers get it in their next package download.' : 'Advanced Security off.');
+              onChange();
+            } catch (e) {
+              toast.error(e);
+            }
+          }}
+        />
         {p.status === 'draft' && <Callout kind="warn">This product is a draft. {p.distribution_type === 'SERVER_PROTECTED' ? 'Publish a version to activate it.' : 'Configure the runtime endpoint and operations, then activate it.'} Keys can be issued now and will work once it is active.</Callout>}
       </div>
       <div className="panel panel-pad">

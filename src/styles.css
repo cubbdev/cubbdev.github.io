@@ -385,3 +385,36 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .g4 { grid-template-columns: 1fr; }
   .page-title { font-size: 24px; }
 }
+
+/* ---------------------------------------------------------------- Advanced Security, Robux sales, storefront */
+.setting-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2); }
+.robux { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; align-self: flex-start; }
+.seg button { background: none; border: 0; color: var(--text-2); padding: 8px 14px; font: inherit; font-size: 13.5px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border-strong); }
+.seg button.on { background: var(--accent-soft); color: var(--text); }
+.linklike { background: none; border: 0; padding: 0; color: #9a9aff; font: inherit; cursor: pointer; text-decoration: underline; }
+.rev { display: flex; flex-direction: column; gap: 10px; }
+.rev-tip { font-size: 13px; min-height: 20px; }
+.rev-bars { display: flex; align-items: flex-end; gap: 3px; height: 190px; border-bottom: 1px solid var(--border); }
+.rev-col { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; min-width: 0; }
+.rev-bar { width: 100%; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #6b6bff, #3434d6); transition: filter 0.1s; }
+.rev-col.on .rev-bar { filter: brightness(1.35); }
+.rev-col.on { background: rgba(255,255,255,0.03); }
+.rev-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); }
+.shop-hero { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; }
+.shop-logo { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; background: var(--panel-3); border: 1px solid var(--border-strong); display: grid; place-items: center; flex: none; }
+.shop-card { display: flex; flex-direction: column; gap: 8px; }
+.shop-card .card-foot { margin-top: auto; align-items: center; }
+.clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.waiting { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border: 1px solid rgba(69,69,255,0.35); background: var(--accent-soft); border-radius: var(--radius); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; counter-reset: step; }
+.steps li { counter-increment: step; display: flex; align-items: center; gap: 10px; color: var(--text-2); }
+.steps li::before { content: counter(step); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border-strong); background: var(--panel-3); flex: none; }
+.steps li.done { color: var(--text); }
+.steps li.done::before { content: '✓'; background: var(--green-soft); border-color: rgba(108,196,23,0.4); color: var(--green); }
+@media (max-width: 640px) {
+  .setting-row { flex-direction: column; }
+  .shop-hero { align-items: flex-start; }
+}
+.mk .page-title { font-size: 28px; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.02em; }

@@ -1,4 +1,4 @@
-import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { AlertTriangle, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, Info, MoreHorizontal, X, XCircle } from 'lucide-react';
 import type { LicenseStatus } from '@cipher/shared';
 import { copyText, errorText, initials } from '../lib';
@@ -32,11 +32,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 export function useToast() {
   const push = useContext(ToastCtx);
-  return {
-    success: (t: string) => push('success', t),
-    error: (e: unknown) => push('error', typeof e === 'string' ? e : errorText(e)),
-    info: (t: string) => push('info', t),
-  };
+  return useMemo(
+    () => ({
+      success: (t: string) => push('success', t),
+      error: (e: unknown) => push('error', typeof e === 'string' ? e : errorText(e)),
+      info: (t: string) => push('info', t),
+    }),
+    [push],
+  );
 }
 
 /* ---------------------------------------------------------------- primitives */

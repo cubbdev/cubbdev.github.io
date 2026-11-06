@@ -56,6 +56,7 @@ export const createProductSchema = z.object({
   policy: productPolicySchema.optional(),
   runtime_endpoint: httpsUrl.optional().nullable(),
   operations: z.array(runtimeOperationSchema).max(64).optional(),
+  advanced_security: z.boolean().optional(),
 });
 
 export const updateProductSchema = z.object({
@@ -65,6 +66,7 @@ export const updateProductSchema = z.object({
   policy: productPolicySchema.optional(),
   runtime_endpoint: httpsUrl.optional().nullable(),
   operations: z.array(runtimeOperationSchema).max(64).optional(),
+  advanced_security: z.boolean().optional(),
 });
 
 export const createLicenseSchema = z

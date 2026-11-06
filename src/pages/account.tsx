@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
-import { Bot, Plus, ShieldCheck, Store } from 'lucide-react';
+import { Bot, Plus, ShieldCheck, ShoppingBag, Store } from 'lucide-react';
 import { PageHead, PlainLayout } from '../components/layout';
 import { Avatar, Callout, ConfirmModal, Empty, ErrorState, Field, Pagination, PageLoader, Spinner, StatusBadge, useToast } from '../components/ui';
 import { useAuth } from '../context';
@@ -12,7 +12,7 @@ export function StoreSelect() {
   if (me.stores.length === 1) return <Navigate to={`/app/s/${me.stores[0].id}/overview`} replace />;
   return (
     <PlainLayout>
-      <PageHead title={`Welcome, ${me.user.display_name ?? me.user.username}`} sub="Choose a store to manage, or create a new one for your Discord server." actions={<Link className="btn primary" to="/app/stores/new"><Plus size={16} />Create store</Link>} />
+      <PageHead title={`Welcome, ${me.user.display_name ?? me.user.username}`} sub="Choose a store to manage, or create a new one for your Discord server." actions={<><Link className="btn" to="/purchases"><ShoppingBag size={16} />My purchases</Link><Link className="btn primary" to="/app/stores/new"><Plus size={16} />Create store</Link></>} />
       {me.stores.length === 0 ? (
         <div className="panel">
           <Empty

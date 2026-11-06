@@ -194,11 +194,23 @@ export interface ProductDTO {
   policy: ProductPolicy;
   runtime_endpoint: string | null;
   operations: RuntimeOperation[];
+  /** Destroys the loader and product files when the game runs in Roblox Studio. */
+  advanced_security: boolean;
+  /** Robux sale through a linked Roblox game pass. */
+  sale: ProductSaleDTO | null;
   current_version: VersionDTO | null;
   license_count: number;
   active_license_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProductSaleDTO {
+  gamepass_id: string;
+  universe_id: string | null;
+  price_robux: number | null;
+  for_sale: boolean;
+  purchase_url: string;
 }
 
 export interface LicenseDTO {
@@ -406,4 +418,103 @@ export interface RuntimeDenial {
   message: string;
   nonce?: string;
   server_time: number;
+}
+
+/* ------------------------------------------------------------------ Roblox & Robux sales */
+
+export interface RobloxLinkDTO {
+  configured: boolean;
+  linked: boolean;
+  roblox_user_id: string | null;
+  roblox_username: string | null;
+  roblox_display_name: string | null;
+}
+
+export interface StoreRobloxOwnerDTO {
+  type: 'User' | 'Group';
+  id: string;
+  name: string;
+  universes: { id: string; name: string }[];
+}
+
+export interface StoreRobloxDTO {
+  configured: boolean;
+  connected: boolean;
+  roblox_username: string | null;
+  roblox_user_id: string | null;
+  owners: StoreRobloxOwnerDTO[];
+  selected: { type: 'User' | 'Group'; id: string; name: string | null } | null;
+  shop_url: string;
+}
+
+export interface GamePassDTO {
+  id: string;
+  name: string;
+  price_robux: number | null;
+  for_sale: boolean;
+  linked_product_id: string | null;
+  url: string;
+}
+
+export interface SalesTotalsDTO {
+  sales: number;
+  gross_robux: number;
+  net_robux: number;
+}
+
+export interface SalesDTO {
+  days: number;
+  totals: SalesTotalsDTO;
+  period: SalesTotalsDTO;
+  daily: ({ date: string } & SalesTotalsDTO)[];
+  by_product: ({ product_id: string; product_name: string } & SalesTotalsDTO)[];
+  recent: {
+    id: string;
+    product_id: string;
+    product_name: string;
+    roblox_user_id: string;
+    roblox_username: string | null;
+    price_robux: number | null;
+    net_robux: number | null;
+    license_id: string | null;
+    completed_at: string;
+  }[];
+}
+
+export interface ShopProductDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  icon_url: string | null;
+  price_robux: number | null;
+  gamepass_id: string;
+  purchase_url: string;
+  advanced_security: boolean;
+}
+
+export interface ShopStoreDTO {
+  name: string;
+  slug: string;
+  description: string | null;
+  icon_url: string | null;
+  support_url: string | null;
+  products: ShopProductDTO[];
+}
+
+export interface PurchaseDTO {
+  id: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  store: { name: string; slug: string };
+  product: { id: string; name: string; icon_url: string | null };
+  roblox_user_id: string;
+  gamepass_id: string;
+  purchase_url: string;
+  price_robux: number | null;
+  license_id: string | null;
+  license_status: LicenseDTO['status'] | null;
+  /** The license key; only returned to the buyer who owns the purchase. */
+  license_key: string | null;
+  secret_name: string;
+  created_at: string;
+  completed_at: string | null;
 }

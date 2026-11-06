@@ -13,8 +13,10 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  ShoppingBag,
   Users,
 } from 'lucide-react';
+import { RobuxIcon } from './sale';
 import type { OverviewDTO } from '@cipher/shared';
 import { useAuth, useStore } from '../context';
 import { api } from '../lib';
@@ -103,6 +105,7 @@ function Sidebar({ open, onNavigate }: { open: boolean; onNavigate: () => void }
       {can('customers.view') && (
         <NavLink to={`${base}/customers`} className={cls}><Users size={18} />Customers{counts && <span className="count">{counts.customers}</span>}</NavLink>
       )}
+      {can('products.view') && <NavLink to={`${base}/sales`} className={cls}><RobuxIcon size={18} />Sales</NavLink>}
       <div className="nav-label" style={{ marginTop: 10 }}>Management</div>
       {(can('audit.view') || can('analytics.view')) && (
         <NavLink to={`${base}/activity`} className={cls}><Activity size={18} />Activity & security</NavLink>
@@ -164,6 +167,7 @@ export function UserMenu() {
       items={[
         { label: me.user.display_name ?? me.user.username, onClick: () => nav('/app/account') },
         { label: 'Account & sessions', onClick: () => nav('/app/account') },
+        { label: 'My purchases', icon: <ShoppingBag size={16} />, onClick: () => nav('/purchases') },
         { label: 'Platform admin', hidden: !me.user.is_platform_admin, icon: <ShieldAlert size={16} />, onClick: () => nav('/admin') },
         { label: '', divider: true, onClick: () => undefined },
         {

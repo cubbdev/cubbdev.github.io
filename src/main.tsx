@@ -13,7 +13,9 @@ import { LicenseDetail, LicensesList } from './pages/licenses';
 import { Overview } from './pages/overview';
 import { ProductDetail, ProductNew, ProductsList } from './pages/products';
 import { AuthComplete, Landing, Login, NotFound, Redeem } from './pages/public';
+import { SalesPage } from './pages/sales';
 import { SettingsPage } from './pages/settings';
+import { PurchasesPage, ShopPage, ShopProductPage } from './pages/shop';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   override state = { error: null as Error | null };
@@ -50,6 +52,7 @@ function StoreRoutes() {
           <Route path="licenses/:licenseId" element={<LicenseDetail />} />
           <Route path="customers" element={<CustomersList />} />
           <Route path="customers/:customerId" element={<CustomerDetail />} />
+          <Route path="sales" element={<SalesPage />} />
           <Route path="activity" element={<ActivityPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="overview" replace />} />
@@ -71,10 +74,13 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/auth/complete" element={<AuthComplete />} />
               <Route path="/redeem" element={<Redeem />} />
               <Route path="/docs" element={<Docs />} />
+              <Route path="/store/:slug" element={<ShopPage />} />
+              <Route path="/store/:slug/:productId" element={<ShopProductPage />} />
               <Route element={<RequireAuth />}>
                 <Route path="/app" element={<StoreSelect />} />
                 <Route path="/app/stores/new" element={<CreateStore />} />
                 <Route path="/app/account" element={<Account />} />
+                <Route path="/purchases" element={<PurchasesPage />} />
                 <Route path="/app/s/:storeId/*" element={<StoreRoutes />} />
                 <Route path="/admin" element={<Admin />} />
               </Route>
