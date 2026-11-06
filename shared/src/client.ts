@@ -32,6 +32,13 @@ import type {
 } from './schemas';
 import type { Permission } from './permissions';
 
+export interface UploadFile {
+  file: Blob;
+  fileName: string;
+  destination: string;
+  scriptType?: 'Script' | 'LocalScript' | 'ModuleScript' | null;
+}
+
 export type ClientAuth =
   | { mode: 'browser' }
   | { mode: 'service'; secret: string; actorDiscordId: string; guildId: string }
@@ -191,6 +198,27 @@ export class CipherClient {
     return this.request<ProductDTO>('POST', `/stores/${storeId}/products/${productId}/icon`, fd);
   }
   versions(storeId: string, productId: string) { return this.request<{ items: VersionDTO[] }>('GET', `/stores/${storeId}/products/${productId}/versions`); }
+  /** One-step asset upload: Cipher creates the product, version 1.0.0, publishes it and builds the package. */
+  quickCreateProduct(storeId: string, input: { name: string; description?: string | null; distribution_type: 'STRICT_PRIVATE' | 'SERVER_PROTECTED'; icon?: Blob | null; files: UploadFile[] }) {
+    const fd = new FormData();
+    fd.set('name', input.name);
+    if (input.description) fd.set('description', input.description);
+    fd.set('distribution_type', input.distribution_type);
+    if (input.icon) fd.set('icon', input.icon);
+    for (const f of input.files) fd.append('files', f.file, f.fileName);
+    fd.set('manifest', JSON.stringify(input.files.map((f) => ({ destination: f.destination, script_type: f.scriptType ?? null }))));
+    return this.request<{ product: ProductDTO; version: VersionDTO }>('POST', `/stores/${storeId}/products/quick`, fd);
+  }
+  uploadFiles(storeId: string, productId: string, files: UploadFile[], version: string, changelog?: string, publish = true) {
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f.file, f.fileName);
+    fd.set('manifest', JSON.stringify(files.map((f) => ({ destination: f.destination, script_type: f.scriptType ?? null }))));
+    fd.set('version', version);
+    if (changelog) fd.set('changelog', changelog);
+    fd.set('publish', publish ? 'true' : 'false');
+    return this.request<VersionDTO>('POST', `/stores/${storeId}/products/${productId}/versions`, fd);
+  }
+  fileDownloadUrl(storeId: string, productId: string, fileId: string) { return this.url(`/v1/stores/${storeId}/products/${productId}/files/${fileId}`); }
   uploadVersion(storeId: string, productId: string, file: Blob | null, fileName: string, version: string, changelog?: string, publish = true) {
     const fd = new FormData();
     if (file) fd.set('file', file, fileName);

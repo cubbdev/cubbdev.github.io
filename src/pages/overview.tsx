@@ -121,7 +121,7 @@ function ProductCard({ p, storeId }: { p: ProductDTO; storeId: string }) {
           items={[
             { label: 'Open product', onClick: () => nav(`/app/s/${storeId}/products/${p.id}`) },
             { label: 'View keys', onClick: () => nav(`/app/s/${storeId}/licenses?product_id=${p.id}`) },
-            { label: 'Download loader', icon: <Download size={15} />, onClick: () => downloadAuthenticated(api.loaderDownloadUrl(storeId, p.id), 'loader.rbxmx').catch(toast.error) },
+            { label: 'Download package', icon: <Download size={15} />, onClick: () => downloadAuthenticated(api.loaderDownloadUrl(storeId, p.id), 'loader.rbxmx').catch(toast.error) },
           ]}
         />
       </div>
@@ -192,7 +192,7 @@ export function Overview() {
         sub={`Licensing, distribution and security activity for ${store.name}.`}
         actions={
           <>
-            {can('products.upload') && <Link className="btn light" to={`/app/s/${store.id}/products/new`}><Upload size={16} />New product</Link>}
+            {can('products.upload') && <Link className="btn light" to={`/app/s/${store.id}/products/new`}><Upload size={16} />Upload asset</Link>}
             {can('licenses.create') && <button className="btn primary" onClick={() => setGenOpen(true)}><Plus size={16} />Generate key</button>}
           </>
         }
@@ -248,7 +248,7 @@ export function Overview() {
             <div className="panel"><ErrorState error={products.error} onRetry={products.reload} /></div>
           ) : products.data && products.data.items.length === 0 ? (
             <div className="panel">
-              <Empty icon={<Package size={20} />} title="No products yet" text="Upload a Roblox model or configure a protected runtime. Cipher generates the loader, product ID and integration guide automatically." action={can('products.upload') ? <Link className="btn primary" to={`/app/s/${store.id}/products/new`}><Plus size={16} />New product</Link> : undefined} />
+              <Empty icon={<Package size={20} />} title="No products yet" text="Upload a Roblox model or configure a protected runtime. Cipher generates the loader, product ID and integration guide automatically." action={can('products.upload') ? <Link className="btn primary" to={`/app/s/${store.id}/products/new`}><Plus size={16} />Upload asset</Link> : undefined} />
             </div>
           ) : (
             <div className="grid" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))` }}>

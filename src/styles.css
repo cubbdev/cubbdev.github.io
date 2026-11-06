@@ -314,6 +314,19 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .product-icon { width: 40px; height: 40px; border-radius: 9px; background: var(--panel-3); border: 1px solid var(--border-strong); display: grid; place-items: center; overflow: hidden; flex: none; }
 .product-icon img { width: 100%; height: 100%; object-fit: cover; }
 
+/* multi-file rows */
+.file-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); flex-wrap: wrap; }
+.file-field { display: flex; flex-direction: column; gap: 3px; }
+.file-field .select { width: 210px; }
+.file-field-spacer { width: 210px; }
+@media (max-width: 900px) { .file-field-spacer { display: none; } .file-field .select { width: 100%; } .file-field { flex: 1 1 100%; } }
+.type-card { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); cursor: pointer; flex: 1; min-width: 240px; }
+.type-card.selected { border-color: var(--accent); background: rgba(69,69,255,0.07); }
+.type-card input { margin-top: 4px; accent-color: var(--accent); }
+.icon-picker { width: 96px; height: 96px; border-radius: 16px; border: 1.5px dashed var(--border-strong); background: var(--panel-2); display: grid; place-items: center; cursor: pointer; overflow: hidden; flex: none; color: var(--text-3); }
+.icon-picker:hover { border-color: var(--accent); }
+.icon-picker img { width: 100%; height: 100%; object-fit: cover; }
+
 /* dropzone & steps */
 .dropzone { border: 1.5px dashed var(--border-strong); border-radius: 12px; padding: 34px; text-align: center; background: var(--panel-2); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: rgba(69,69,255,0.05); }

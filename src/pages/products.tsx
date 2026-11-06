@@ -1,16 +1,15 @@
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Check, Download, FileCode2, ImagePlus, KeyRound, Lock, Package, Plus, Server, Upload } from 'lucide-react';
 import type { DistributionType, ProductDTO, ProductPolicy, RuntimeOperation } from '@cipher/shared';
 import { DEFAULT_PRODUCT_POLICY } from '@cipher/shared';
 import { PageHead } from '../components/layout';
 import { EVENT_COLOR, EVENT_LABEL, eventDetail, GenerateKeyModal } from '../components/keys';
-import { FileDrop, OperationsEditor, PolicyEditor } from '../components/product-forms';
+import { FilesEditor, OperationsEditor, PolicyEditor, type FileRow } from '../components/product-forms';
 import { Callout, ConfirmModal, CopyField, Empty, ErrorState, Field, Menu, PageLoader, Spinner, StatusBadge, Tabs, useToast } from '../components/ui';
 import { useStore } from '../context';
 import { api, downloadAuthenticated, errorText, fmtBytes, fmtDate, relTime, useAsync, useDebounced } from '../lib';
 
-const ACCEPT = '.rbxm,.rbxmx,.lua,.luau,.zip';
 
 function ProductIcon({ p }: { p: ProductDTO }) {
   return <span className="product-icon">{p.icon_url ? <img src={p.icon_url} alt="" /> : p.distribution_type === 'STRICT_PRIVATE' ? <Lock size={18} /> : <Server size={18} />}</span>;
@@ -31,7 +30,7 @@ export function ProductsList() {
       <PageHead
         title="Products"
         sub="Your protected Roblox products, their versions and licensing policies."
-        actions={can('products.upload') && <Link className="btn primary" to={`/app/s/${store.id}/products/new`}><Plus size={16} />New product</Link>}
+        actions={can('products.upload') && <Link className="btn primary" to={`/app/s/${store.id}/products/new`}><Plus size={16} />Upload asset</Link>}
       />
       <div className="panel">
         <div className="toolbar">
@@ -41,7 +40,7 @@ export function ProductsList() {
           </select>
         </div>
         {list.error ? <ErrorState error={list.error} onRetry={list.reload} /> : list.loading && !list.data ? <PageLoader /> : !list.data!.items.length ? (
-          <Empty icon={<Package size={20} />} title={q || status ? 'No matching products' : 'No products yet'} text="Products hold your files, licensing policy and the generated Roblox loader." action={can('products.upload') && !q ? <Link className="btn primary" to={`/app/s/${store.id}/products/new`}><Plus size={16} />New product</Link> : undefined} />
+          <Empty icon={<Package size={20} />} title={q || status ? 'No matching products' : 'No products yet'} text="Products hold your files, licensing policy and the generated Roblox loader." action={can('products.upload') && !q ? <Link className="btn primary" to={`/app/s/${store.id}/products/new`}><Plus size={16} />Upload asset</Link> : undefined} />
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -58,7 +57,7 @@ export function ProductsList() {
                     <td style={{ textAlign: 'right' }}>
                       <Menu items={[
                         { label: 'Open', onClick: () => nav(`/app/s/${store.id}/products/${p.id}`) },
-                        { label: 'Download loader', icon: <Download size={15} />, onClick: () => downloadAuthenticated(api.loaderDownloadUrl(store.id, p.id), 'loader.rbxmx').catch(toast.error) },
+                        { label: 'Download package', icon: <Download size={15} />, onClick: () => downloadAuthenticated(api.loaderDownloadUrl(store.id, p.id), 'loader.rbxmx').catch(toast.error) },
                         { label: 'View keys', icon: <KeyRound size={15} />, hidden: !can('licenses.view'), onClick: () => nav(`/app/s/${store.id}/licenses?product_id=${p.id}`) },
                       ]} />
                     </td>
@@ -73,146 +72,112 @@ export function ProductsList() {
   );
 }
 
-/* ================================================================== create wizard */
-
-const STEPS = ['Protection', 'Details', 'Source', 'Licensing', 'Review'];
+/* ================================================================== create (one page) */
 
 export function ProductNew() {
   const { store } = useStore();
   const nav = useNavigate();
-  const [step, setStep] = useState(0);
-  const [type, setType] = useState<DistributionType>('SERVER_PROTECTED');
+  const toast = useToast();
+  const iconRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState<File | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [version, setVersion] = useState('1.0.0');
-  const [endpoint, setEndpoint] = useState('');
-  const [ops, setOps] = useState<RuntimeOperation[]>([]);
-  const [policy, setPolicy] = useState<ProductPolicy>(store.settings.default_policy ?? DEFAULT_PRODUCT_POLICY);
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [type, setType] = useState<DistributionType>('SERVER_PROTECTED');
+  const [files, setFiles] = useState<FileRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState('');
   const [err, setErr] = useState<string | null>(null);
 
-  const stepValid = [
-    true,
-    name.trim().length >= 2,
-    type === 'SERVER_PROTECTED' ? !!file && /^\d+\.\d+\.\d+/.test(version) : endpoint.startsWith('https://') && ops.length > 0 && ops.every((o) => o.name.length > 0),
-    policy.heartbeat_interval_seconds * 2 <= policy.session_lease_seconds && policy.session_lease_seconds >= 120,
-    true,
-  ];
+  useEffect(() => () => { if (iconUrl) URL.revokeObjectURL(iconUrl); }, [iconUrl]);
 
-  async function publish() {
+  const total = files.reduce((a, f) => a + f.file.size, 0);
+  const ready = name.trim().length >= 2 && (type === 'STRICT_PRIVATE' || files.length > 0) && total <= 50 * 1024 * 1024;
+
+  async function upload() {
     setBusy(true);
     setErr(null);
     try {
-      setProgress('Creating product…');
-      const p = await api.createProduct(store.id, {
+      const r = await api.quickCreateProduct(store.id, {
         name: name.trim(),
         description: description.trim() || null,
         distribution_type: type,
-        policy,
-        runtime_endpoint: type === 'STRICT_PRIVATE' ? endpoint.trim() : null,
-        operations: type === 'STRICT_PRIVATE' ? ops : undefined,
+        icon,
+        files: files.map((f) => ({ file: f.file, fileName: f.file.name, destination: f.destination, scriptType: f.scriptType })),
       });
-      if (icon) {
-        setProgress('Uploading icon…');
-        await api.uploadIcon(store.id, p.id, icon).catch(() => undefined);
+      if (r.version.scan_status === 'rejected') {
+        toast.error('A file failed our security check, so nothing was published. See the details below.');
+        nav(`/app/s/${store.id}/products/${r.product.id}?tab=versions`);
+        return;
       }
-      if (file) {
-        setProgress('Uploading and inspecting file…');
-        const v = await api.uploadVersion(store.id, p.id, file, file.name, version, 'Initial release', true);
-        if (v.scan_status === 'rejected') {
-          nav(`/app/s/${store.id}/products/${p.id}?tab=versions`);
-          return;
-        }
-      } else if (type === 'STRICT_PRIVATE') {
-        setProgress('Publishing…');
-        await api.uploadVersion(store.id, p.id, null, '', version, 'Initial release', true).catch(() => undefined);
-        await api.updateProduct(store.id, p.id, { status: 'active' });
-      }
-      nav(`/app/s/${store.id}/products/${p.id}?created=1`);
+      nav(`/app/s/${store.id}/products/${r.product.id}?created=1`);
     } catch (e) {
       setErr(errorText(e));
     } finally {
       setBusy(false);
-      setProgress('');
     }
   }
 
   return (
     <>
-      <PageHead title="New product" sub="Cipher generates the product ID, loader, integration guide and version history automatically." crumbs={[{ to: `/app/s/${store.id}/products`, label: 'Products' }, { to: '#', label: 'New' }]} />
-      <div className="steps">
-        {STEPS.map((s, i) => (
-          <span key={s} className={`step ${i === step ? 'active' : i < step ? 'done' : ''}`}><span className="num">{i < step ? <Check size={12} /> : i + 1}</span>{s}</span>
-        ))}
-      </div>
-      <div className="panel panel-pad" style={{ maxWidth: 860 }}>
-        {step === 0 && (
-          <div className="stack">
-            <div className="panel-title">How should this product be protected?</div>
-            {([
-              ['STRICT_PRIVATE', <Lock key="l" size={18} />, 'Strict private', 'Your proprietary logic runs on infrastructure you control. Experiences only receive results of predefined operations — the source never leaves your server. Best for valuable systems.'],
-              ['SERVER_PROTECTED', <Server key="s" size={18} />, 'Server protected', 'You upload server-side Roblox files that customers install. Cipher gates them at runtime with the license. The experience owner can read these files — this does not make source inaccessible.'],
-            ] as const).map(([v, ic, t, d]) => (
-              <label key={v} className={`check-row ${type === v ? 'selected' : ''}`}>
-                <input type="radio" name="type" checked={type === v} onChange={() => setType(v)} />
-                <div><div className="row" style={{ fontWeight: 600 }}>{ic}{t} <span className="badge mono">{v}</span></div><div className="muted small mt-8">{d}</div></div>
-              </label>
-            ))}
+      <PageHead title="Upload an asset" sub="Fill in five things. Cipher handles the product ID, version, security scan, loader and delivery." crumbs={[{ to: `/app/s/${store.id}/products`, label: 'Products' }, { to: '#', label: 'Upload' }]} />
+      <div className="panel panel-pad stack" style={{ maxWidth: 920, gap: 22 }}>
+        <div className="row" style={{ gap: 18, alignItems: 'flex-start' }}>
+          <div>
+            <div className="icon-picker" role="button" tabIndex={0} aria-label="Choose an icon" onClick={() => iconRef.current?.click()} onKeyDown={(e) => e.key === 'Enter' && iconRef.current?.click()}>
+              {iconUrl ? <img src={iconUrl} alt="" /> : <span className="stack" style={{ gap: 4, alignItems: 'center' }}><ImagePlus size={22} /><span className="small">Icon</span></span>}
+            </div>
+            <input
+              ref={iconRef}
+              type="file"
+              hidden
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                if (f && f.size > 1024 * 1024) { toast.error('Icons must be 1 MB or smaller.'); return; }
+                setIcon(f);
+                setIconUrl(f ? URL.createObjectURL(f) : null);
+              }}
+            />
           </div>
-        )}
-        {step === 1 && (
-          <div className="form-grid">
-            <div className="span-2"><Field label="Product name"><input className="input" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} autoFocus /></Field></div>
-            <div className="span-2"><Field label="Description"><textarea className="textarea" maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} /></Field></div>
-            <div className="span-2"><Field label="Icon (optional)" hint="PNG, JPEG or WebP up to 1 MB."><FileDrop file={icon} onFile={setIcon} accept="image/png,image/jpeg,image/webp" label="Choose an icon" hint="Shown on the redemption page" /></Field></div>
+          <div className="stack" style={{ flex: 1, gap: 14 }}>
+            <Field label="Name"><input className="input" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Realistic Car Kit" autoFocus /></Field>
+            <Field label="Description"><textarea className="textarea" style={{ minHeight: 70 }} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What it does — shown to your customers" /></Field>
           </div>
-        )}
-        {step === 2 && type === 'SERVER_PROTECTED' && (
-          <div className="stack">
-            <FileDrop file={file} onFile={setFile} accept={ACCEPT} label="Drop your product file here" hint=".rbxmx (recommended), .rbxm, .lua, .luau or .zip · up to 25 MB" />
-            <Field label="Version"><input className="input" style={{ maxWidth: 200 }} value={version} onChange={(e) => setVersion(e.target.value)} /></Field>
-            <Callout kind="info">Your model should contain a ModuleScript named <code>CipherEntry</code> that returns <code>{'{ start = function(cipher) … end, stop = function(reason) … end }'}</code>. Cipher starts it only after the license is authorized. Files are stored privately and inspected for backdoors before publishing.</Callout>
+        </div>
+
+        <Field label="Privacy type">
+          <div className="row wrap" style={{ alignItems: 'stretch' }}>
+            <label className={`type-card ${type === 'SERVER_PROTECTED' ? 'selected' : ''}`}>
+              <input type="radio" name="type" checked={type === 'SERVER_PROTECTED'} onChange={() => setType('SERVER_PROTECTED')} />
+              <div>
+                <div className="row" style={{ fontWeight: 600, gap: 8 }}><Server size={16} />Protected <span className="badge blue">Recommended</span></div>
+                <div className="muted small mt-8">Your files only run in licensed games, and are removed if a license is revoked. Buyers can open the files in Studio.</div>
+              </div>
+            </label>
+            <label className={`type-card ${type === 'STRICT_PRIVATE' ? 'selected' : ''}`}>
+              <input type="radio" name="type" checked={type === 'STRICT_PRIVATE'} onChange={() => setType('STRICT_PRIVATE')} />
+              <div>
+                <div className="row" style={{ fontWeight: 600, gap: 8 }}><Lock size={16} />Strict private</div>
+                <div className="muted small mt-8">Your secret logic never leaves a server you run; games get results only. Needs a runtime server (set up after upload).</div>
+              </div>
+            </label>
           </div>
+        </Field>
+
+        <Field label={type === 'STRICT_PRIVATE' ? 'Files (optional — public UI and parts only)' : 'Files'} hint="Pick where each file goes in the game. Cipher puts it there automatically once the buyer's license is verified.">
+          <FilesEditor value={files} onChange={setFiles} disabled={busy} />
+        </Field>
+
+        {type === 'STRICT_PRIVATE' && (
+          <Callout kind="info">Don’t upload your secret code here — anything uploaded is delivered to buyers. After uploading, open the product’s <strong>Runtime operations</strong> tab to connect your runtime server.</Callout>
         )}
-        {step === 2 && type === 'STRICT_PRIVATE' && (
-          <div className="stack">
-            <Field label="Runtime endpoint" hint="A public https:// URL you control. Cipher signs every request with Ed25519; verify it with the Provider SDK.">
-              <input className="input mono" value={endpoint} onChange={(e) => setEndpoint(e.target.value.trim())} placeholder="https://runtime.yourstore.dev/" />
-            </Field>
-            <Field label="Version"><input className="input" style={{ maxWidth: 200 }} value={version} onChange={(e) => setVersion(e.target.value)} /></Field>
-            <div className="panel-title">Operations</div>
-            <p className="muted small" style={{ margin: 0 }}>Experiences can only request these operations, with payloads matching the fields you declare. Anything else is rejected and recorded as a security event.</p>
-            <OperationsEditor value={ops} onChange={setOps} />
-            <Field label="Public client assets (optional)" hint="Optional public UI package delivered to customers. Never upload proprietary code here — it would be visible to them.">
-              <FileDrop file={file} onFile={setFile} accept={ACCEPT} label="Choose a file" hint="Delivered as-is to licensed customers" />
-            </Field>
-          </div>
-        )}
-        {step === 3 && <PolicyEditor value={policy} onChange={setPolicy} />}
-        {step === 4 && (
-          <div className="stack">
-            <dl className="kv">
-              <dt>Name</dt><dd>{name}</dd>
-              <dt>Protection</dt><dd>{type}</dd>
-              <dt>Version</dt><dd>{version}</dd>
-              {type === 'SERVER_PROTECTED' && <><dt>File</dt><dd>{file?.name} ({file ? fmtBytes(file.size) : ''})</dd></>}
-              {type === 'STRICT_PRIVATE' && <><dt>Runtime</dt><dd className="mono">{endpoint}</dd><dt>Operations</dt><dd>{ops.map((o) => o.name).join(', ')}</dd></>}
-              <dt>Studio testing</dt><dd>{policy.allow_studio ? 'Allowed' : 'Blocked'}</dd>
-              <dt>Groups</dt><dd>{policy.group_policy.replace('_', ' ')}</dd>
-            </dl>
-            {err && <Callout kind="danger">{err}</Callout>}
-          </div>
-        )}
-        <div className="row between mt-24">
-          <button className="btn ghost" disabled={step === 0 || busy} onClick={() => setStep((s) => s - 1)}>Back</button>
-          {step < STEPS.length - 1 ? (
-            <button className="btn primary" disabled={!stepValid[step]} onClick={() => setStep((s) => s + 1)}>Continue</button>
-          ) : (
-            <button className="btn primary" disabled={busy} onClick={publish}>{busy ? <><Spinner size={14} />{progress}</> : <><Upload size={16} />Publish product</>}</button>
-          )}
+        {err && <Callout kind="danger">{err}</Callout>}
+
+        <div className="row between wrap">
+          <span className="faint small">Licensing uses your store’s default policy. You can fine-tune it later.</span>
+          <button className="btn primary lg" disabled={!ready || busy} onClick={upload}>
+            {busy ? <><Spinner size={16} />Uploading and checking files…</> : <><Upload size={18} />Upload asset</>}
+          </button>
         </div>
       </div>
     </>
@@ -245,7 +210,7 @@ export function ProductDetail() {
         sub={<span className="row wrap"><StatusBadge status={p.status} /><span className={`badge ${p.distribution_type === 'STRICT_PRIVATE' ? 'blue' : 'gray'}`}>{p.distribution_type}</span><span className="mono faint">{p.id}</span></span>}
         actions={
           <>
-            <button className="btn light" onClick={() => downloadAuthenticated(api.loaderDownloadUrl(store.id, p.id), 'loader.rbxmx').catch(toast.error)}><Download size={16} />Download loader</button>
+            <button className="btn light" onClick={() => downloadAuthenticated(api.loaderDownloadUrl(store.id, p.id), 'loader.rbxmx').catch(toast.error)}><Download size={16} />Download package</button>
             {can('licenses.create') && <button className="btn primary" onClick={() => setGen(true)}><KeyRound size={16} />Generate key</button>}
             <Menu items={[
               { label: p.status === 'archived' ? 'Restore to active' : 'Archive product', hidden: !can('products.edit'), onClick: async () => { try { await api.updateProduct(store.id, p.id, { status: p.status === 'archived' ? 'active' : 'archived' }); product.reload(); toast.success('Product updated'); } catch (e) { toast.error(e); } } },
@@ -333,7 +298,7 @@ function Versions({ p, onChange }: { p: ProductDTO; onChange: () => void }) {
   const { store, can } = useStore();
   const toast = useToast();
   const versions = useAsync(() => api.versions(store.id, p.id), [p.id]);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<FileRow[]>([]);
   const [version, setVersion] = useState('');
   const [changelog, setChangelog] = useState('');
   const [busy, setBusy] = useState(false);
@@ -348,20 +313,21 @@ function Versions({ p, onChange }: { p: ProductDTO; onChange: () => void }) {
     <div className="stack">
       {can('products.upload') && (
         <div className="panel panel-pad stack">
-          <div className="panel-title">Publish a new version</div>
-          <FileDrop file={file} onFile={setFile} accept={ACCEPT} label={p.distribution_type === 'STRICT_PRIVATE' ? 'Optional public assets' : 'Drop the updated product file'} hint=".rbxmx, .rbxm, .lua, .luau or .zip · up to 25 MB" />
+          <div className="panel-title">Publish an update</div>
+          <p className="muted small" style={{ margin: 0 }}>Upload the complete set of files for the new version. Buyers get it the next time they download their package.</p>
+          <FilesEditor value={files} onChange={setFiles} disabled={busy} />
           <div className="form-grid">
             <Field label="Version"><input className="input" value={version} onChange={(e) => setVersion(e.target.value)} /></Field>
             <Field label="Changelog"><input className="input" value={changelog} maxLength={2000} onChange={(e) => setChangelog(e.target.value)} /></Field>
           </div>
           <div>
-            <button className="btn primary" disabled={busy || !version || (p.distribution_type === 'SERVER_PROTECTED' && !file)} onClick={async () => {
+            <button className="btn primary" disabled={busy || !version || (p.distribution_type === 'SERVER_PROTECTED' && !files.length)} onClick={async () => {
               setBusy(true);
               try {
-                const v = await api.uploadVersion(store.id, p.id, file, file?.name ?? '', version, changelog || undefined, true);
-                if (v.scan_status === 'rejected') toast.error('This file failed security inspection and was not published. See the findings below.');
+                const v = await api.uploadFiles(store.id, p.id, files.map((f) => ({ file: f.file, fileName: f.file.name, destination: f.destination, scriptType: f.scriptType })), version, changelog || undefined, true);
+                if (v.scan_status === 'rejected') toast.error('A file failed our security check, so this version was not published. See the details below.');
                 else toast.success(`Version ${v.version} published`);
-                setFile(null); setChangelog(''); setVersion('');
+                setFiles([]); setChangelog(''); setVersion('');
                 versions.reload(); onChange();
               } catch (e) { toast.error(e); } finally { setBusy(false); }
             }}>{busy ? <Spinner size={14} /> : <Upload size={16} />}Upload & publish</button>
@@ -373,12 +339,19 @@ function Versions({ p, onChange }: { p: ProductDTO; onChange: () => void }) {
         {versions.loading && !versions.data ? <PageLoader /> : versions.error ? <ErrorState error={versions.error} /> : !versions.data!.items.length ? <Empty icon={<FileCode2 size={20} />} title="No versions yet" /> : (
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>Version</th><th>File</th><th>Inspection</th><th>Uploaded</th><th>Published</th><th /></tr></thead>
+              <thead><tr><th>Version</th><th>Files</th><th>Inspection</th><th>Uploaded</th><th>Published</th><th /></tr></thead>
               <tbody>
                 {versions.data!.items.map((v) => (
                   <tr key={v.id}>
                     <td className="wrap-ok"><div className="cell-main">v{v.version}{p.current_version?.id === v.id && <span className="badge blue" style={{ marginLeft: 8 }}>current</span>}</div>{v.changelog && <div className="cell-sub">{v.changelog}</div>}</td>
-                    <td>{v.file_name ? <><div>{v.file_name}</div><div className="cell-sub mono" title={v.sha256}>{fmtBytes(v.file_size)} · sha256 {v.sha256.slice(0, 12)}…</div></> : <span className="faint">No file</span>}</td>
+                    <td className="wrap-ok">
+                      {v.files.length ? v.files.map((f) => (
+                        <div key={f.id} className="small" style={{ marginBottom: 4 }}>
+                          <span className="cell-main">{f.file_name}</span> <span className="faint">→ {f.destination}{f.script_type ? ` · ${f.script_type}` : ''} · {fmtBytes(f.file_size)}</span>
+                          {f.scan_status === 'rejected' && <span className="badge red" style={{ marginLeft: 6 }}>blocked</span>}
+                        </div>
+                      )) : v.file_name ? <><div>{v.file_name}</div><div className="cell-sub">{fmtBytes(v.file_size)}</div></> : <span className="faint">No files</span>}
+                    </td>
                     <td className="wrap-ok"><StatusBadge status={v.scan_status} />{v.scan_findings.filter((f) => f.severity !== 'info').slice(0, 3).map((f, i) => <div key={i} className="cell-sub" style={{ color: f.severity === 'critical' ? 'var(--red)' : undefined }}>{f.message}{f.location ? ` (${f.location})` : ''}</div>)}</td>
                     <td className="faint">{fmtDate(v.created_at, true)}</td>
                     <td className="faint">{v.published_at ? fmtDate(v.published_at) : '—'}</td>

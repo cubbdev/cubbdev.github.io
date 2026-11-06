@@ -147,6 +147,40 @@ export interface VersionDTO {
   created_by: string | null;
   created_at: string;
   published_at: string | null;
+  /** Every file in this version with its destination. */
+  files: VersionFileDTO[];
+}
+
+/** Where an uploaded file is placed in the customer's experience once the license is authorized. */
+export const DESTINATIONS = [
+  { id: 'ServerScriptService', label: 'ServerScriptService', hint: 'Server scripts' },
+  { id: 'ServerStorage', label: 'ServerStorage', hint: 'Server-only assets and modules' },
+  { id: 'Workspace', label: 'Workspace', hint: 'Models, parts and maps' },
+  { id: 'ReplicatedStorage', label: 'ReplicatedStorage', hint: 'Shared modules, remotes, assets' },
+  { id: 'StarterGui', label: 'StarterGui', hint: 'UI for every player' },
+  { id: 'StarterPlayerScripts', label: 'StarterPlayerScripts', hint: 'Client scripts' },
+  { id: 'StarterCharacterScripts', label: 'StarterCharacterScripts', hint: 'Per-character scripts' },
+  { id: 'StarterPack', label: 'StarterPack', hint: 'Tools' },
+  { id: 'Lighting', label: 'Lighting', hint: 'Sky, atmosphere, effects' },
+  { id: 'SoundService', label: 'SoundService', hint: 'Sounds' },
+  { id: 'ReplicatedFirst', label: 'ReplicatedFirst', hint: 'Loading screens' },
+  { id: 'Teams', label: 'Teams', hint: 'Team objects' },
+] as const;
+export type Destination = (typeof DESTINATIONS)[number]['id'];
+export const DESTINATION_IDS: readonly string[] = DESTINATIONS.map((d) => d.id);
+export type ScriptType = 'Script' | 'LocalScript' | 'ModuleScript';
+
+export interface VersionFileDTO {
+  id: string;
+  position: number;
+  file_name: string;
+  file_size: number;
+  sha256: string;
+  kind: 'rbxmx' | 'rbxm' | 'luau' | 'zip';
+  destination: Destination;
+  script_type: ScriptType | null;
+  scan_status: ScanStatus;
+  scan_findings: ScanFinding[];
 }
 
 export interface ProductDTO {

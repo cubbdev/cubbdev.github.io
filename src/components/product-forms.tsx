@@ -1,8 +1,108 @@
 import { useRef, useState } from 'react';
-import { Plus, Trash2, UploadCloud } from 'lucide-react';
-import type { OperationField, ProductPolicy, RuntimeOperation } from '@cipher/shared';
+import { FileBox, FileCode2, FileArchive, Plus, Trash2, UploadCloud } from 'lucide-react';
+import type { OperationField, ProductPolicy, RuntimeOperation, ScriptType } from '@cipher/shared';
+import { DESTINATIONS } from '@cipher/shared';
 import { fmtBytes } from '../lib';
 import { Field, Toggle } from './ui';
+
+/* ---------------------------------------------------------------- multi-file picker */
+
+export const ACCEPTED_FILES = '.rbxmx,.rbxm,.lua,.luau,.zip';
+const ACCEPTED_EXT = ['rbxmx', 'rbxm', 'lua', 'luau', 'zip'];
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+export interface FileRow {
+  key: string;
+  file: File;
+  destination: string;
+  scriptType: ScriptType | null;
+}
+
+const ext = (name: string) => name.split('.').pop()?.toLowerCase() ?? '';
+const isScript = (name: string) => ['lua', 'luau'].includes(ext(name));
+
+/** Same defaults as the API: client scripts → StarterPlayerScripts, modules → ReplicatedStorage, scripts → ServerScriptService, models → ServerStorage. */
+export function guessDestination(name: string): string {
+  const n = name.toLowerCase();
+  if (/\.client\.luau?$/.test(n)) return 'StarterPlayerScripts';
+  if (/\.module\.luau?$/.test(n)) return 'ReplicatedStorage';
+  if (/\.luau?$/.test(n)) return 'ServerScriptService';
+  if (/(gui|ui|hud|screen)/.test(n)) return 'StarterGui';
+  if (/(map|model|car|vehicle|build|terrain)/.test(n)) return 'Workspace';
+  return 'ServerStorage';
+}
+
+export function FilesEditor({ value, onChange, disabled }: { value: FileRow[]; onChange: (rows: FileRow[]) => void; disabled?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [drag, setDrag] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const add = (list: FileList | null) => {
+    if (!list) return;
+    const rows: FileRow[] = [];
+    const problems: string[] = [];
+    for (const f of Array.from(list)) {
+      if (!ACCEPTED_EXT.includes(ext(f.name))) problems.push(`${f.name}: use .rbxmx, .rbxm, .lua, .luau or .zip`);
+      else if (f.size > MAX_FILE_BYTES) problems.push(`${f.name}: larger than 25 MB`);
+      else rows.push({ key: `${f.name}-${f.size}-${Math.random()}`, file: f, destination: guessDestination(f.name), scriptType: null });
+    }
+    setError(problems.length ? problems.join(' · ') : null);
+    onChange([...value, ...rows].slice(0, 20));
+  };
+  const update = (key: string, patch: Partial<FileRow>) => onChange(value.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const total = value.reduce((a, r) => a + r.file.size, 0);
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      <div
+        className={`dropzone ${drag ? 'drag' : ''}`}
+        style={{ padding: value.length ? 18 : 34 }}
+        role="button"
+        tabIndex={0}
+        onClick={() => !disabled && ref.current?.click()}
+        onKeyDown={(e) => e.key === 'Enter' && ref.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); if (!disabled) add(e.dataTransfer.files); }}
+      >
+        <input ref={ref} type="file" multiple hidden accept={ACCEPTED_FILES} onChange={(e) => { add(e.target.files); e.target.value = ''; }} />
+        <UploadCloud size={value.length ? 20 : 26} className="faint" />
+        <div style={{ fontWeight: 500, marginTop: 6 }}>{value.length ? 'Add more files' : 'Drop your files here, or click to choose'}</div>
+        <div className="faint small">Models (.rbxmx, .rbxm), scripts (.lua, .luau) or .zip · up to 20 files, 25 MB each</div>
+      </div>
+      {error && <div className="small" style={{ color: 'var(--red)' }}>{error}</div>}
+      {value.map((r) => (
+        <div key={r.key} className="file-row">
+          <span className="product-icon" style={{ width: 34, height: 34 }}>
+            {isScript(r.file.name) ? <FileCode2 size={16} /> : ext(r.file.name) === 'zip' ? <FileArchive size={16} /> : <FileBox size={16} />}
+          </span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="cell-main" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.file.name}</div>
+            <div className="cell-sub">{fmtBytes(r.file.size)}{ext(r.file.name) === 'rbxm' || ext(r.file.name) === 'zip' ? ' · delivered as a separate download' : ''}</div>
+          </div>
+          <label className="file-field">
+            <span className="faint small">Goes in</span>
+            <select className="select compact" disabled={disabled} value={r.destination} onChange={(e) => update(r.key, { destination: e.target.value })}>
+              {DESTINATIONS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          </label>
+          {!isScript(r.file.name) && <div className="file-field-spacer" aria-hidden="true" />}
+          {isScript(r.file.name) && (
+            <label className="file-field">
+              <span className="faint small">Runs as</span>
+              <select className="select compact" disabled={disabled} value={r.scriptType ?? ''} onChange={(e) => update(r.key, { scriptType: (e.target.value || null) as ScriptType | null })}>
+                <option value="">Auto</option>
+                <option value="Script">Script (server)</option>
+                <option value="LocalScript">LocalScript (client)</option>
+                <option value="ModuleScript">ModuleScript</option>
+              </select>
+            </label>
+          )}
+          <button type="button" className="icon-btn" aria-label={`Remove ${r.file.name}`} disabled={disabled} onClick={() => onChange(value.filter((x) => x.key !== r.key))}><Trash2 size={15} /></button>
+        </div>
+      ))}
+      {value.length > 0 && <div className="faint small">{value.length} file{value.length === 1 ? '' : 's'} · {fmtBytes(total)}{total > 50 * 1024 * 1024 ? ' — over the 50 MB total limit' : ''}</div>}
+    </div>
+  );
+}
 
 export function PolicyEditor({ value, onChange, disabled }: { value: ProductPolicy; onChange: (p: ProductPolicy) => void; disabled?: boolean }) {
   const set = <K extends keyof ProductPolicy>(k: K, v: ProductPolicy[K]) => onChange({ ...value, [k]: v });
