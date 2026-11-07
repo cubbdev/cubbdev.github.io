@@ -1,4 +1,5 @@
-import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, CheckCircle2, ChevronLeft, ChevronRight, Copy, Info, MoreHorizontal, X, XCircle } from 'lucide-react';
 import type { LicenseStatus } from '@cipher/shared';
 import { copyText, errorText, initials } from '../lib';
@@ -173,19 +174,50 @@ export interface MenuItem { label: string; icon?: ReactNode; onClick: () => void
 
 export function Menu({ items, label = 'More actions', trigger }: { items: MenuItem[]; label?: string; trigger?: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setOpen(false);
     };
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const dismiss = (e: Event) => {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+    };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', esc);
+    window.addEventListener('resize', dismiss);
+    window.addEventListener('scroll', dismiss, true);
     return () => {
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', esc);
+      window.removeEventListener('resize', dismiss);
+      window.removeEventListener('scroll', dismiss, true);
     };
+  }, [open]);
+  // Place the menu in the viewport: fixed positioning escapes clipping containers (tables, panels),
+  // and it flips left/right and up/down so it is never cut off.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const anchor = ref.current?.getBoundingClientRect();
+    const menu = menuRef.current;
+    if (!anchor || !menu) return;
+    const w = menu.offsetWidth;
+    const hgt = menu.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 6;
+    let left = anchor.right - w;
+    if (left < 8) left = anchor.left;
+    left = Math.max(8, Math.min(left, vw - w - 8));
+    let top = anchor.bottom + gap;
+    if (top + hgt > vh - 8 && anchor.top - gap - hgt >= 8) top = anchor.top - gap - hgt;
+    setPos({ position: 'fixed', left, top, right: 'auto' });
   }, [open]);
   const visible = items.filter((i) => !i.hidden);
   if (!visible.length) return null;
@@ -198,8 +230,9 @@ export function Menu({ items, label = 'More actions', trigger }: { items: MenuIt
           <MoreHorizontal size={18} />
         </button>
       )}
-      {open && (
-        <div className="menu" role="menu">
+      {open &&
+        createPortal(
+        <div className="menu" role="menu" ref={menuRef} style={pos ?? { position: 'fixed', visibility: 'hidden', left: 0, top: 0, right: 'auto' }}>
           {visible.map((it, idx) =>
             it.divider ? (
               <hr key={idx} />
@@ -218,8 +251,9 @@ export function Menu({ items, label = 'More actions', trigger }: { items: MenuIt
               </button>
             ),
           )}
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }

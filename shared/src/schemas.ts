@@ -156,6 +156,8 @@ export const activateSchema = z.object({
   nonce: nonceSchema,
   timestamp: z.number().int(),
   server: runtimeServerSchema,
+  /** Advanced Security: fingerprint of the package's instance tree, computed by the loader. */
+  package: z.object({ fingerprint: z.string().regex(/^[0-9a-f]{16}$/), items: z.number().int().min(0).max(1_000_000) }).optional(),
 });
 
 export const heartbeatSchema = z.object({

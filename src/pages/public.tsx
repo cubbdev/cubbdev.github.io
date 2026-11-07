@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Download, Fingerprint, KeyRound, Lock, Server, ShieldCheck, Terminal, Users } from 'lucide-react';
 import type { RedeemResultDTO } from '@cipher/shared';
 import { Logo } from '../components/layout';
+import { SecretSetup } from '../components/secret-setup';
 import { Callout, CopyField, Field, Spinner, StatusBadge, useToast } from '../components/ui';
 import { useAuth } from '../context';
 import { api, API_URL, errorText, fmtDate } from '../lib';
@@ -243,8 +244,8 @@ export function Redeem() {
               <dl className="kv">
                 <dt>Licensed to</dt><dd>{result.license.subject_type === 'group' ? `Roblox group ${result.license.roblox_group_id}` : `Roblox user ${result.license.roblox_user_id}`}</dd>
                 <dt>Expires</dt><dd>{result.license.expires_at ? fmtDate(result.license.expires_at) : 'Never'}</dd>
-                <dt>Roblox Secret name</dt><dd><CopyField value={result.secret_name} /></dd>
               </dl>
+              <SecretSetup secretName={result.secret_name} licenseKey={token.trim() || null} />
               {result.downloads.length ? (
                 <div className="row wrap">
                   {result.downloads.map((d) => (
@@ -255,7 +256,7 @@ export function Redeem() {
                 <Callout kind="warn">This license is {result.license.status}. Downloads are unavailable — contact {result.store.name}{result.store.support_url ? <> at <a href={result.store.support_url} style={{ textDecoration: 'underline' }}>{result.store.support_url}</a></> : ''}.</Callout>
               )}
               <Callout kind="info">
-                <strong>Install:</strong> insert the loader into ServerScriptService, enable HTTP requests, then create a Roblox Secret named <code>{result.secret_name}</code> with your key as its value. Download links expire after 5 minutes.
+                <strong>Install:</strong> insert the loader into ServerScriptService, turn on Allow HTTP Requests (Game Settings → Security), and add the Roblox Secret above. Download links expire after 5 minutes.
               </Callout>
               {result.product.distribution_type === 'SERVER_PROTECTED' && (
                 <Callout kind="warn">This product is delivered as server-side files. As the experience owner you can read them — the license controls whether they run.</Callout>

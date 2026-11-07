@@ -4,7 +4,8 @@ import { CheckCircle2, Download, ExternalLink, KeyRound, Link2, LogIn, Package, 
 import type { PurchaseDTO, RobloxLinkDTO, ShopProductDTO } from '@cipher/shared';
 import { DevBanner, Logo, UserMenu } from '../components/layout';
 import { Robux, RobuxIcon } from '../components/sale';
-import { Callout, CopyField, Empty, ErrorState, PageLoader, Spinner, useToast } from '../components/ui';
+import { SecretSetup } from '../components/secret-setup';
+import { Callout, Empty, ErrorState, PageLoader, Spinner, useToast } from '../components/ui';
 import { useAuth } from '../context';
 import { api, errorText, fmtDate, useAsync } from '../lib';
 
@@ -256,8 +257,7 @@ function Delivered({ purchase }: { purchase: PurchaseDTO }) {
     <div className="stack">
       <Callout kind="info"><strong>You own this.</strong> Bought {fmtDate(purchase.completed_at)} with Roblox account {purchase.roblox_user_id}.</Callout>
       {!active && <Callout kind="danger">This license is {purchase.license_status}. Contact the store for help.</Callout>}
-      {purchase.license_key && <div><div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Your license key</div><CopyField value={purchase.license_key} mask /></div>}
-      <div><div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Roblox Secret name</div><CopyField value={purchase.secret_name} /></div>
+      <SecretSetup secretName={purchase.secret_name} licenseKey={purchase.license_key} />
       <button className="btn primary lg" disabled={busy || !active} onClick={async () => {
         setBusy(true);
         try {
@@ -272,7 +272,7 @@ function Delivered({ purchase }: { purchase: PurchaseDTO }) {
       <ol className="muted small" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.8 }}>
         <li>In Studio, drag the downloaded .rbxmx into <strong>ServerScriptService</strong>.</li>
         <li>Game Settings → Security → turn on <strong>Allow HTTP Requests</strong>.</li>
-        <li>Creator Dashboard → your experience → <strong>Secrets</strong>: add a secret named as above, with your license key as the value.</li>
+        <li>Add the Roblox Secret above (Name, Secret and Domain).</li>
         <li>Publish. The asset loads itself on live servers.</li>
       </ol>
     </div>

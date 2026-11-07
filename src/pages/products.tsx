@@ -7,6 +7,7 @@ import { PageHead } from '../components/layout';
 import { EVENT_COLOR, EVENT_LABEL, eventDetail, GenerateKeyModal } from '../components/keys';
 import { FilesEditor, OperationsEditor, PolicyEditor, type FileRow } from '../components/product-forms';
 import { SaleTab } from '../components/sale';
+import { SecretSetup } from '../components/secret-setup';
 import { Callout, ConfirmModal, CopyField, Empty, ErrorState, Field, Menu, PageLoader, Spinner, StatusBadge, Tabs, Toggle, useToast } from '../components/ui';
 import { useStore } from '../context';
 import { api, downloadAuthenticated, errorText, fmtBytes, fmtDate, relTime, useAsync, useDebounced } from '../lib';
@@ -194,7 +195,11 @@ function AdvancedSecurityRow({ on, onChange, disabled }: { on: boolean; onChange
     <div className="setting-row">
       <div>
         <div className="row" style={{ fontWeight: 600, gap: 8 }}><ShieldCheck size={16} />Advanced Security</div>
-        <div className="muted small mt-8">If the game is running in Roblox Studio, the loader deletes itself and every product file from that session before anything loads. Your product only ever runs in live Roblox servers, so it can't be play-tested in Studio.</div>
+        <div className="muted small mt-8">
+          <strong>Studio lock:</strong> in Roblox Studio the loader deletes itself and every product file before anything loads, so the product only runs on live servers.
+          <br />
+          <strong>Integrity check:</strong> on every server start the loader’s contents are compared with the package Cipher generated. If anything was added, removed, renamed or moved, the server is refused, the files are deleted and the key is <strong>revoked automatically</strong> (you can reinstate it from Keys).
+        </div>
       </div>
       <Toggle on={on} onChange={onChange} label="Advanced Security" disabled={disabled} />
     </div>
@@ -454,11 +459,11 @@ function Integration({ p }: { p: ProductDTO }) {
       </div>
       <div className="panel panel-pad stack">
         <div className="panel-title">Customer setup</div>
-        <Field label="Roblox Secret name"><CopyField value={doc.data.secret_name} /></Field>
+        <SecretSetup secretName={doc.data.secret_name} />
         <ol className="muted" style={{ paddingLeft: 18, margin: 0, lineHeight: 1.9 }}>
           <li>Send the customer their key (they download this loader at <code>/redeem</code>).</li>
           <li>They insert the folder into ServerScriptService.</li>
-          <li>They enable HTTP requests and create the secret above.</li>
+          <li>They enable HTTP requests and create the secret above (same Name and Domain, their own key).</li>
           <li>Servers authorize automatically on start.</li>
         </ol>
         <Callout kind="info">The loader contains no license key, no proprietary source and does not use <code>loadstring</code>.</Callout>
