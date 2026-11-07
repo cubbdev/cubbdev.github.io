@@ -13,6 +13,7 @@ import { LicenseDetail, LicensesList } from './pages/licenses';
 import { Overview } from './pages/overview';
 import { ProductDetail, ProductNew, ProductsList } from './pages/products';
 import { AuthComplete, Landing, Login, NotFound, Redeem } from './pages/public';
+import { RobloxCallback } from './pages/roblox-callback';
 import { SalesPage } from './pages/sales';
 import { SettingsPage } from './pages/settings';
 import { PurchasesPage, ShopPage, ShopProductPage } from './pages/shop';
@@ -72,6 +73,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/auth/complete" element={<AuthComplete />} />
+              <Route path="/roblox/callback" element={<RobloxCallback />} />
               <Route path="/redeem" element={<Redeem />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/store/:slug" element={<ShopPage />} />
